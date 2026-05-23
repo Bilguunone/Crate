@@ -15,6 +15,7 @@ enum SidebarSection: String, CaseIterable {
     case use
     case userTags
     case color
+    case quality
     case visual
     case collections
     case importing
@@ -31,6 +32,7 @@ enum SidebarSection: String, CaseIterable {
         case .use: "Use"
         case .userTags: "User Tags"
         case .color: "Color"
+        case .quality: "Quality"
         case .visual: "Visual"
         case .collections: "Collections"
         case .importing: "Import"

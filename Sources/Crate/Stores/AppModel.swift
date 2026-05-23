@@ -68,7 +68,11 @@ final class AppModel {
     var orientationFacets: [String] = []
     var transparencyFacets: [String] = []
     var edgeDensityFacets: [String] = []
+    var qualityFacets: [String] = []
+    var qualityFacetCounts: [String: Int] = [:]
     var hasVisualFacets = false
+    var hasQualityWarnings = false
+    var duplicateCandidateAssetCount = 0
     var smartCollections: [SmartCollectionDefinition] = []
     var favoriteAssetCount = 0
     var userTagFacets: [UserTagFacet] = []
@@ -99,6 +103,7 @@ final class AppModel {
     @ObservationIgnored var tagValuesByNamespace: [String: Set<String>] = [:]
     @ObservationIgnored var userTagsByAssetID: [String: [AssetTag]] = [:]
     @ObservationIgnored var userTagAssetIDsByKey: [String: Set<String>] = [:]
+    @ObservationIgnored var qualityAssetIDsByValue: [String: Set<String>] = [:]
     @ObservationIgnored var recentlyImportedAssetIDs: Set<String> = []
     @ObservationIgnored var hasAlphaAssetIDs: Set<String> = []
     @ObservationIgnored var unusedGemAssetIDs: Set<String> = []

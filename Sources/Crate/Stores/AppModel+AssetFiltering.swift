@@ -190,6 +190,10 @@ extension AppModel {
         assetTagsByID[asset.id]?.contains(tagKey(namespace, value)) == true
     }
 
+    func qualityWarningCount(for value: String) -> Int {
+        qualityFacetCounts[value] ?? 0
+    }
+
     func tagKey(_ namespace: String, _ value: String) -> String {
         "\(namespace):\(value)"
     }

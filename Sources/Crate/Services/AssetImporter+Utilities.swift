@@ -57,7 +57,8 @@ extension AssetImporter {
     }
 
     func withComputedTags(_ tags: [AssetTag], primary: AssetVariant) -> [AssetTag] {
-        tags + VisualAnalysisService.computedTags(for: primary)
+        let kind = tags.first { $0.namespace == "kind" }?.value
+        return tags + VisualAnalysisService.computedTags(for: primary, assetKind: kind)
     }
 
     func orientationTag(_ metadata: ImageMetadata) -> AssetTag {

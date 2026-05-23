@@ -142,6 +142,7 @@ extension AppModel {
         var userTagsByAsset: [String: [AssetTag]] = [:]
         var userTagCounts: [String: (namespace: String, value: String, count: Int)] = [:]
         var userTagAssets: [String: Set<String>] = [:]
+        var qualityAssets: [String: Set<String>] = [:]
 
         for asset in assets {
             var tagKeys = Set<String>()
@@ -165,6 +166,8 @@ extension AppModel {
                     var count = userTagCounts[key] ?? (tag.namespace, tag.value, 0)
                     count.count += 1
                     userTagCounts[key] = count
+                } else if tag.namespace == "quality" {
+                    qualityAssets[tag.value, default: []].insert(asset.id)
                 }
             }
 
@@ -189,6 +192,8 @@ extension AppModel {
             }
         }
         userTagAssetIDsByKey = userTagAssets
+        qualityAssetIDsByValue = qualityAssets
+        qualityFacetCounts = qualityAssets.mapValues { $0.count }
         userTagFacets = userTagCounts.values
             .map { UserTagFacet(namespace: $0.namespace, value: $0.value, count: $0.count) }
             .sorted {
@@ -207,6 +212,7 @@ extension AppModel {
         orientationFacets = orderedFacetValues(namespace: "orientation", order: ["square", "landscape", "portrait", "panoramic", "tall"])
         transparencyFacets = orderedFacetValues(namespace: "transparency", order: ["none", "light", "partial", "heavy", "full"])
         edgeDensityFacets = orderedFacetValues(namespace: "edge_density", order: ["soft", "moderate", "busy"])
+        qualityFacets = QualityWarningCatalog.orderedValues(from: tagValuesByNamespace["quality"] ?? [])
         hasVisualFacets = !brightnessFacets.isEmpty
             || !contrastFacets.isEmpty
             || !orientationFacets.isEmpty
@@ -268,6 +274,8 @@ extension AppModel {
 
         duplicateClustersByAssetID = clustersByAssetID
         duplicateCandidateAssetIDs = Set(clusters.flatMap(\.assetIDs))
+        duplicateCandidateAssetCount = duplicateCandidateAssetIDs.count
+        hasQualityWarnings = !qualityFacets.isEmpty || !duplicateCandidateAssetIDs.isEmpty
     }
 
     func refreshSelectedAssetDerivedData() {

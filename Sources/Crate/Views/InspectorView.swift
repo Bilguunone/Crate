@@ -22,6 +22,7 @@ struct InspectorView: View {
                         preview(asset)
                         actions(asset)
                         metadata(asset)
+                        qualityWarnings(asset)
                         userTags(asset)
                         deferredSections(asset)
                     }
@@ -124,6 +125,41 @@ struct InspectorView: View {
     }
 
     @ViewBuilder
+    private func qualityWarnings(_ asset: DesignAsset) -> some View {
+        let qualityTags = asset.tags
+            .filter { $0.namespace == "quality" }
+            .sorted {
+                let leftIndex = QualityWarningCatalog.orderedValues.firstIndex(of: $0.value) ?? Int.max
+                let rightIndex = QualityWarningCatalog.orderedValues.firstIndex(of: $1.value) ?? Int.max
+                if leftIndex == rightIndex { return $0.value < $1.value }
+                return leftIndex < rightIndex
+            }
+        let clusters = model.selectedAssetID == asset.id ? model.selectedDuplicateClusters : model.duplicateClusters(for: asset)
+
+        if !qualityTags.isEmpty || !clusters.isEmpty {
+            InspectorSection(title: "Quality Warnings") {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(qualityTags) { tag in
+                        QualityWarningRow(
+                            title: QualityWarningCatalog.title(for: tag.value),
+                            detail: QualityWarningCatalog.detail(for: tag.value),
+                            systemImage: QualityWarningCatalog.systemImage(for: tag.value)
+                        )
+                    }
+
+                    if !clusters.isEmpty {
+                        QualityWarningRow(
+                            title: QualityWarningCatalog.title(for: "suspicious-duplicate"),
+                            detail: "\(clusters.count) duplicate \(clusters.count == 1 ? "group" : "groups") found",
+                            systemImage: QualityWarningCatalog.systemImage(for: "suspicious-duplicate")
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
     private func deferredSections(_ asset: DesignAsset) -> some View {
         if deferredInspectorAssetID == asset.id {
             autoTags(asset)
@@ -137,7 +173,7 @@ struct InspectorView: View {
 
     private func autoTags(_ asset: DesignAsset) -> some View {
         let tags = asset.tags
-            .filter { !($0.source == "user" && $0.protected) }
+            .filter { $0.namespace != "quality" && !($0.source == "user" && $0.protected) }
             .sorted { $0.namespace == $1.namespace ? $0.value < $1.value : $0.namespace < $1.namespace }
 
         return InspectorSection(title: "Auto Tags") {
@@ -269,6 +305,31 @@ struct InspectorView: View {
             "rectangle.2.swap"
         case .nearDuplicate:
             "exclamationmark.triangle"
+        }
+    }
+}
+
+private struct QualityWarningRow: View {
+    let title: String
+    let detail: String
+    let systemImage: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.orange)
+                .frame(width: 18, height: 18)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout)
+                    .fontWeight(.semibold)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }

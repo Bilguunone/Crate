@@ -13,18 +13,22 @@ enum VisualAnalysisService {
     static func computedTags(for asset: DesignAsset) -> [AssetTag] {
         guard let variant = asset.primaryVariant else { return [] }
         let analysisURL = variant.hasAlpha ? variant.fileURL : (asset.thumbnailURL ?? variant.fileURL)
-        return computedTags(for: variant, imageURL: analysisURL)
+        return computedTags(for: variant, imageURL: analysisURL, assetKind: asset.kind)
     }
 
     static func computedTags(for variant: AssetVariant) -> [AssetTag] {
-        computedTags(for: variant, imageURL: variant.fileURL)
+        computedTags(for: variant, imageURL: variant.fileURL, assetKind: nil)
     }
 
-    private static func computedTags(for variant: AssetVariant, imageURL: URL) -> [AssetTag] {
+    static func computedTags(for variant: AssetVariant, assetKind: String?) -> [AssetTag] {
+        computedTags(for: variant, imageURL: variant.fileURL, assetKind: assetKind)
+    }
+
+    private static func computedTags(for variant: AssetVariant, imageURL: URL, assetKind: String?) -> [AssetTag] {
         guard let analysis = analyze(url: imageURL, width: variant.width, height: variant.height) else {
-            return [orientationTag(width: variant.width, height: variant.height)]
+            return [orientationTag(width: variant.width, height: variant.height)] + metadataQualityTags(for: variant)
         }
-        return analysis.tags
+        return analysis.tags + qualityTags(for: variant, assetKind: assetKind, analysis: analysis)
     }
 
     static func tagUpdates(for assets: [DesignAsset]) -> VisualAnalysisReport {
@@ -78,23 +82,53 @@ enum VisualAnalysisService {
         var visibleWeight = 0.0
         var weightedLumaSum = 0.0
         var transparentPixels = 0
+        var semiTransparentPixels = 0
+        var whiteFringePixels = 0
+        var borderPixels = 0
+        var borderWhitePixels = 0
+        var centerPixels = 0
+        var centerNonWhitePixels = 0
+        let borderInset = 6
+        let centerInset = 16
 
-        for index in 0..<(width * height) {
-            let offset = index * 4
-            let alpha = Double(pixels[offset + 3]) / 255.0
-            if alpha < 0.98 {
-                transparentPixels += 1
+        for y in 0..<height {
+            for x in 0..<width {
+                let index = y * width + x
+                let offset = index * 4
+                let alpha = Double(pixels[offset + 3]) / 255.0
+                if alpha < 0.98 {
+                    transparentPixels += 1
+                }
+                if alpha > 0.04 && alpha < 0.96 {
+                    semiTransparentPixels += 1
+                }
+                guard alpha > 0.04 else { continue }
+
+                let red = unpremultiply(pixels[offset], alpha: pixels[offset + 3])
+                let green = unpremultiply(pixels[offset + 1], alpha: pixels[offset + 3])
+                let blue = unpremultiply(pixels[offset + 2], alpha: pixels[offset + 3])
+                let nearWhite = isNearWhite(red: red, green: green, blue: blue)
+                if alpha < 0.96, nearWhite {
+                    whiteFringePixels += 1
+                }
+                if x < borderInset || y < borderInset || x >= width - borderInset || y >= height - borderInset {
+                    borderPixels += 1
+                    if alpha > 0.92, nearWhite {
+                        borderWhitePixels += 1
+                    }
+                }
+                if x >= centerInset && y >= centerInset && x < width - centerInset && y < height - centerInset {
+                    centerPixels += 1
+                    if alpha > 0.72, !nearWhite {
+                        centerNonWhitePixels += 1
+                    }
+                }
+                let luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+                lumaValues[index] = luma
+                visibleWeight += alpha
+                weightedLumaSum += luma * alpha
+                colorWeights[colorBucket(red: red, green: green, blue: blue), default: 0] += alpha
             }
-            guard alpha > 0.04 else { continue }
-
-            let red = unpremultiply(pixels[offset], alpha: pixels[offset + 3])
-            let green = unpremultiply(pixels[offset + 1], alpha: pixels[offset + 3])
-            let blue = unpremultiply(pixels[offset + 2], alpha: pixels[offset + 3])
-            let luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue
-            lumaValues[index] = luma
-            visibleWeight += alpha
-            weightedLumaSum += luma * alpha
-            colorWeights[colorBucket(red: red, green: green, blue: blue), default: 0] += alpha
         }
 
         guard visibleWeight > 0 else {
@@ -104,13 +138,18 @@ enum VisualAnalysisService {
                 tag("brightness", "dark"),
                 tag("contrast", "low"),
                 tag("edge_density", "soft")
-            ])
+            ], qualityMetrics: .empty)
         }
 
         let averageLuma = weightedLumaSum / visibleWeight
         let contrast = contrastScore(lumaValues: lumaValues, average: averageLuma)
         let transparencyRatio = Double(transparentPixels) / Double(max(width * height, 1))
         let edgeDensity = edgeDensityScore(lumaValues: lumaValues, width: width, height: height)
+        let semiTransparentRatio = Double(semiTransparentPixels) / Double(max(width * height, 1))
+        let whiteFringeRatio = Double(whiteFringePixels) / Double(max(semiTransparentPixels, 1))
+        let borderWhiteRatio = Double(borderWhitePixels) / Double(max(borderPixels, 1))
+        let centerNonWhiteRatio = Double(centerNonWhitePixels) / Double(max(centerPixels, 1))
+        let dominantWhiteShare = (colorWeights["white"] ?? 0) / visibleWeight
         let dominantColors = colorWeights
             .sorted { lhs, rhs in lhs.value == rhs.value ? lhs.key < rhs.key : lhs.value > rhs.value }
             .prefix(3)
@@ -124,12 +163,84 @@ enum VisualAnalysisService {
         tags.append(orientationTag(width: originalWidth, height: originalHeight))
         tags.append(tag("transparency", transparencyBucket(transparencyRatio)))
         tags.append(tag("edge_density", edgeDensityBucket(edgeDensity)))
-        return VisualAnalysisResult(tags: tags)
+        return VisualAnalysisResult(
+            tags: tags,
+            qualityMetrics: VisualQualityMetrics(
+                contrast: contrast,
+                transparencyRatio: transparencyRatio,
+                edgeDensity: edgeDensity,
+                semiTransparentRatio: semiTransparentRatio,
+                whiteFringeRatio: whiteFringeRatio,
+                borderWhiteRatio: borderWhiteRatio,
+                centerNonWhiteRatio: centerNonWhiteRatio,
+                dominantWhiteShare: dominantWhiteShare
+            )
+        )
+    }
+
+    private static func metadataQualityTags(for variant: AssetVariant) -> [AssetTag] {
+        var tags: [AssetTag] = []
+        appendResolutionWarnings(for: variant, to: &tags)
+        return tags
+    }
+
+    private static func qualityTags(for variant: AssetVariant, assetKind: String?, analysis: VisualAnalysisResult) -> [AssetTag] {
+        var tags: [AssetTag] = []
+        let metrics = analysis.qualityMetrics
+        appendResolutionWarnings(for: variant, to: &tags)
+
+        if variant.hasAlpha, metrics.transparencyRatio < 0.003 {
+            tags.append(tag("quality", "fake-transparency", confidence: 0.9))
+        }
+
+        if assetKind != "texture",
+           (variant.fileExtension.lowercased() == "png" || variant.hasAlpha),
+           metrics.transparencyRatio < 0.03,
+           metrics.borderWhiteRatio > 0.86,
+           metrics.centerNonWhiteRatio > 0.08 {
+            tags.append(tag("quality", "white-boxed-background", confidence: 0.82))
+        }
+
+        if variant.hasAlpha,
+           metrics.transparencyRatio > 0.02,
+           metrics.semiTransparentRatio > 0.008,
+           metrics.whiteFringeRatio > 0.35,
+           metrics.dominantWhiteShare < 0.55 {
+            tags.append(tag("quality", "bad-alpha-edges", confidence: 0.72))
+        }
+
+        if min(variant.width, variant.height) >= 900,
+           metrics.edgeDensity < 0.01,
+           metrics.contrast > 0.025,
+           metrics.contrast < 0.07,
+           metrics.dominantWhiteShare < 0.75 {
+            tags.append(tag("quality", "blurry", confidence: 0.68))
+        }
+
+        return tags
+    }
+
+    private static func appendResolutionWarnings(for variant: AssetVariant, to tags: inout [AssetTag]) {
+        let minDimension = min(variant.width, variant.height)
+        let pixelCount = variant.width * variant.height
+        if minDimension < 512 || pixelCount < 512 * 512 {
+            tags.append(tag("quality", "low-resolution", confidence: minDimension < 256 ? 0.95 : 0.78))
+        }
+
+        let megapixels = Double(max(pixelCount, 1)) / 1_000_000
+        let bytesPerMegapixel = Double(variant.byteCount) / max(megapixels, 0.1)
+        if variant.byteCount >= 40 * 1024 * 1024 || (variant.byteCount >= 16 * 1024 * 1024 && bytesPerMegapixel > 24 * 1024 * 1024) {
+            tags.append(tag("quality", "giant-file", confidence: 0.86))
+        }
     }
 
     private static func unpremultiply(_ component: UInt8, alpha: UInt8) -> Double {
         guard alpha > 0 else { return 0 }
         return min(1, Double(component) / Double(alpha))
+    }
+
+    private static func isNearWhite(red: Double, green: Double, blue: Double) -> Bool {
+        min(red, green, blue) > 0.86 && max(red, green, blue) - min(red, green, blue) < 0.12
     }
 
     private static func contrastScore(lumaValues: [Double], average: Double) -> Double {
@@ -267,4 +378,27 @@ struct VisualAnalysisReport: Encodable {
 
 private struct VisualAnalysisResult {
     let tags: [AssetTag]
+    let qualityMetrics: VisualQualityMetrics
+}
+
+private struct VisualQualityMetrics {
+    let contrast: Double
+    let transparencyRatio: Double
+    let edgeDensity: Double
+    let semiTransparentRatio: Double
+    let whiteFringeRatio: Double
+    let borderWhiteRatio: Double
+    let centerNonWhiteRatio: Double
+    let dominantWhiteShare: Double
+
+    static let empty = VisualQualityMetrics(
+        contrast: 0,
+        transparencyRatio: 1,
+        edgeDensity: 0,
+        semiTransparentRatio: 0,
+        whiteFringeRatio: 0,
+        borderWhiteRatio: 0,
+        centerNonWhiteRatio: 0,
+        dominantWhiteShare: 0
+    )
 }

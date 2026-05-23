@@ -38,7 +38,7 @@ extension AppModel {
             do {
                 try store.replaceComputedTags(report.updates)
                 try reload()
-                statusMessage = "Analyzed \(report.analyzedAssetCount) assets and wrote \(report.writtenTagCount) computed visual tags."
+                statusMessage = "Analyzed \(report.analyzedAssetCount) assets and wrote \(report.writtenTagCount) computed visual and quality tags."
             } catch {
                 statusMessage = error.localizedDescription
             }

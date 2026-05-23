@@ -85,6 +85,28 @@ struct SidebarView: View {
                 }
             }
 
+            if model.hasQualityWarnings {
+                disclosureSection(.quality) {
+                    ForEach(model.qualityFacets, id: \.self) { value in
+                        SidebarRow(
+                            title: QualityWarningCatalog.title(for: value),
+                            detail: qualityDetail(for: value),
+                            systemImage: QualityWarningCatalog.systemImage(for: value),
+                            filter: .tag("quality", value)
+                        )
+                    }
+
+                    if model.duplicateCandidateAssetCount > 0 {
+                        SidebarRow(
+                            title: "Suspicious Duplicates",
+                            detail: "\(model.duplicateCandidateAssetCount) · \(QualityWarningCatalog.detail(for: "suspicious-duplicate"))",
+                            systemImage: QualityWarningCatalog.systemImage(for: "suspicious-duplicate"),
+                            filter: .smart(.duplicateWatch)
+                        )
+                    }
+                }
+            }
+
             if model.hasVisualFacets {
                 disclosureSection(.visual) {
                     ForEach(model.brightnessFacets, id: \.self) { value in
@@ -192,6 +214,10 @@ struct SidebarView: View {
             return "\(collection.count) · \(detail)"
         }
         return "\(collection.count)"
+    }
+
+    private func qualityDetail(for value: String) -> String {
+        "\(model.qualityWarningCount(for: value)) · \(QualityWarningCatalog.detail(for: value))"
     }
 
     private func swatchColor(for value: String) -> Color {
