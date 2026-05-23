@@ -1,0 +1,33 @@
+name: Feature Request
+description: Suggest an improvement for Crate.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What should Crate help you do?
+      description: Describe the workflow, not just the button.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed shape
+      description: How should it feel in the app, CLI, or MCP wrapper?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Main surface
+      options:
+        - App UI
+        - CLI
+        - MCP wrapper
+        - Import/tagging
+        - Library storage
+        - Packaging/install
+        - Other

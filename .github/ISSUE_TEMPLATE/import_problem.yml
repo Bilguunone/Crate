@@ -1,0 +1,32 @@
+name: Import Problem
+description: A folder did not analyze or import the way you expected.
+title: "[Import]: "
+labels: ["import"]
+body:
+  - type: textarea
+    id: folder
+    attributes:
+      label: Folder shape
+      description: Show a small tree of the folder. Do not upload paid/vendor assets.
+      placeholder: |
+        My Pack/
+          01.png
+          01.jpg
+          notes.txt
+    validations:
+      required: true
+  - type: textarea
+    id: analyze
+    attributes:
+      label: Analyze output
+      description: Paste output from `./script/cratectl.sh analyze-folder "/path/to/pack"`.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: What pack name, tags, grouping, or normalized names did you expect?
+  - type: textarea
+    id: notes
+    attributes:
+      label: Extra notes
+      description: Mention file formats, alpha/transparency, duplicate names, or variant pairs.

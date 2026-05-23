@@ -1,0 +1,44 @@
+name: Bug Report
+description: Something in Crate is broken or behaving badly.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Crate
+        2. Import folder...
+        3. Click...
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "Example: macOS 15.5"
+    validations:
+      required: true
+  - type: input
+    id: crate
+    attributes:
+      label: Crate version or commit
+      placeholder: "Example: 0.1.0 or commit SHA"
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Paste relevant output from ./script/verify.sh or the CLI if useful.
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or recording
+      description: UI bugs are much easier to fix with a screenshot or short screen recording.
