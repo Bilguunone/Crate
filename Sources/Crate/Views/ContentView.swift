@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppModel.self) private var model
+    @SceneStorage("crate.inspectorPresented") private var isInspectorPresented = true
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
@@ -27,10 +28,7 @@ struct ContentView: View {
                     .searchable(text: $model.searchText, placement: .toolbar, prompt: "Search assets, tags, filenames")
                     .crateSearchFocused($isSearchFocused)
                 }
-                .inspector(isPresented: Binding(
-                    get: { model.selectedAsset != nil },
-                    set: { _ in }
-                )) {
+                .inspector(isPresented: $isInspectorPresented) {
                     InspectorView()
                         .inspectorColumnWidth(min: 320, ideal: 360, max: 420)
                 }

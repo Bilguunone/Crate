@@ -11,7 +11,6 @@ import SwiftUI
 struct AssetGridView: View {
     @Environment(AppModel.self) private var model
     @FocusState private var isGridFocused: Bool
-    @State private var isBulkTagSheetPresented = false
     @State private var itemFrames: [String: CGRect] = [:]
     @State private var marqueeState: AssetGridMarqueeState?
     @State private var isIgnoringMarqueeDrag = false
@@ -63,13 +62,6 @@ struct AssetGridView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 12)
 
-            if model.selectedAssetCount > 1 {
-                BulkSelectionBar(isTagSheetPresented: $isBulkTagSheetPresented)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
             Divider()
 
             if model.filteredAssets.isEmpty {
@@ -113,6 +105,7 @@ struct AssetGridView: View {
                             isGridFocused = true
                         }
                         .onChange(of: model.selectedAssetID) {
+                            guard marqueeState == nil else { return }
                             scrollSelectedAssetIfVisible(in: visibleAssets, with: scrollProxy)
                         }
                         .onKeyPress(.leftArrow) {
@@ -130,9 +123,6 @@ struct AssetGridView: View {
                     }
                 }
             }
-        }
-        .sheet(isPresented: $isBulkTagSheetPresented) {
-            BulkTagSheet()
         }
     }
 
