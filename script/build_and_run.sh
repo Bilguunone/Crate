@@ -13,6 +13,7 @@ APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
+APP_RESOURCES="$APP_CONTENTS/Resources"
 STAGE_APP_ICON="$ROOT_DIR/script/stage_app_icon.sh"
 SIGN_APP="$ROOT_DIR/script/sign_app.sh"
 
@@ -50,6 +51,12 @@ cat >"$INFO_PLIST" <<PLIST
 PLIST
 
 "$STAGE_APP_ICON" "$ROOT_DIR" "$APP_CONTENTS" "$INFO_PLIST" "$MIN_SYSTEM_VERSION"
+if [[ -d "$ROOT_DIR/Resources/Pixelmator" ]]; then
+  mkdir -p "$APP_RESOURCES"
+  rm -rf "$APP_RESOURCES/Pixelmator"
+  cp -R "$ROOT_DIR/Resources/Pixelmator" "$APP_RESOURCES/Pixelmator"
+  find "$APP_RESOURCES/Pixelmator" -type f -name "pxdctl-*" -exec chmod +x {} \;
+fi
 /usr/bin/plutil -lint "$INFO_PLIST" >/dev/null
 "$SIGN_APP" "$APP_BUNDLE" >/dev/null
 

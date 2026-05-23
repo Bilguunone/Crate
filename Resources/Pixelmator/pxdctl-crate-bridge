@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+PIXELMATOR_APP_ID = "com.apple.pixelmator"
+
+
+def fail(message, code=1):
+    print(f"pxdctl-crate-bridge: {message}", file=sys.stderr)
+    raise SystemExit(code)
+
+
+def applescript_string(value):
+    text = str(value)
+    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def applescript_bool(value):
+    return "true" if bool(value) else "false"
+
+
+def point(value):
+    if not isinstance(value, list) or len(value) != 2:
+        fail("position must be [x, y]")
+    return "{" + ", ".join(str(float(v)).rstrip("0").rstrip(".") for v in value) + "}"
+
+
+def layer_slot(value):
+    return "the end of layers" if value == "end" else "the beginning of layers"
+
+
+def run_osascript(lines, dry_run=False):
+    script = "\n".join(lines)
+    if dry_run:
+        print(script)
+        return ""
+
+    with tempfile.NamedTemporaryFile("w", suffix=".applescript", delete=False) as handle:
+        handle.write(script)
+        script_path = handle.name
+
+    try:
+        result = subprocess.run(
+            ["osascript", script_path],
+            check=False,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    finally:
+        os.unlink(script_path)
+
+    if result.returncode != 0:
+        fail(result.stderr.strip() or "AppleScript failed", result.returncode)
+    return result.stdout.strip()
+
+
+def set_common_layer_properties(lines, variable, edit):
+    if "name" in edit:
+        lines.append(f"set name of {variable} to {applescript_string(edit['name'])}")
+    if "constrainProportions" in edit:
+        lines.append(
+            f"set constrain proportions of {variable} to {applescript_bool(edit['constrainProportions'])}"
+        )
+    if "preserveTransparency" in edit:
+        lines.append(
+            f"set preserve transparency of {variable} to {applescript_bool(edit['preserveTransparency'])}"
+        )
+    if "position" in edit:
+        lines.append(f"set position of {variable} to {point(edit['position'])}")
+    if "width" in edit:
+        lines.append(f"set width of {variable} to {float(edit['width'])}")
+    if "height" in edit:
+        lines.append(f"set height of {variable} to {float(edit['height'])}")
+    if "opacity" in edit:
+        lines.append(f"set opacity of {variable} to {int(edit['opacity'])}")
+    if "visible" in edit:
+        lines.append(f"set visible of {variable} to {applescript_bool(edit['visible'])}")
+    if "blendMode" in edit:
+        lines.append(f"set blend mode of {variable} to {edit['blendMode']}")
+    if "rotation" in edit:
+        lines.append(f"set rotation of {variable} to {float(edit['rotation'])}")
+
+
+def build_apply_script(document_path, spec):
+    document_path = str(Path(document_path).expanduser().resolve())
+    lines = [
+        f"tell application id {applescript_string(PIXELMATOR_APP_ID)}",
+        "activate",
+        f"open POSIX file {applescript_string(document_path)}",
+        f"delay {float(spec.get('openDelay', 0.6))}",
+        "tell front document",
+    ]
+
+    for index, edit in enumerate(spec.get("edits", []), start=1):
+        op = edit.get("op")
+        if op != "add-image":
+            fail(f"unsupported edit op in bundled bridge: {op}")
+
+        image_path = edit.get("path")
+        if not image_path:
+            fail("add-image edit requires path")
+
+        image_path = str(Path(image_path).expanduser().resolve())
+        variable = f"crateLayer{index}"
+        props = [f"file:POSIX file {applescript_string(image_path)}"]
+        if "position" in edit:
+            props.append(f"position:{point(edit['position'])}")
+        if "width" in edit:
+            props.append(f"width:{float(edit['width'])}")
+        if "height" in edit:
+            props.append(f"height:{float(edit['height'])}")
+        if "opacity" in edit:
+            props.append(f"opacity:{int(edit['opacity'])}")
+
+        lines.append(
+            f"set {variable} to make new image layer at {layer_slot(edit.get('at'))} "
+            f"with properties {{{', '.join(props)}}}"
+        )
+        set_common_layer_properties(lines, variable, edit)
+
+    if spec.get("save", True):
+        lines.append("save")
+
+    lines.extend(["end tell", "end tell"])
+    return lines
+
+
+def command_apply(args):
+    with open(args.spec, "r", encoding="utf-8") as handle:
+        spec = json.load(handle)
+
+    document = args.document or spec.get("document")
+    if not document:
+        fail("document path required as argument or spec.document")
+
+    output = run_osascript(build_apply_script(document, spec), dry_run=args.dry_run)
+    if output:
+        print(output)
+    elif not args.dry_run:
+        print(str(Path(document).expanduser().resolve()))
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        prog="pxdctl-crate-bridge",
+        description="Minimal Pixelmator Pro bridge bundled with Crate.",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    apply_parser = subparsers.add_parser("apply", help="Apply Crate image-layer edits to a .pxd document")
+    apply_parser.add_argument("document", nargs="?")
+    apply_parser.add_argument("spec")
+    apply_parser.add_argument("--dry-run", action="store_true")
+    apply_parser.set_defaults(func=command_apply)
+
+    return parser
+
+
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

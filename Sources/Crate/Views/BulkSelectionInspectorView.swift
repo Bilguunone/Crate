@@ -45,6 +45,10 @@ struct BulkSelectionInspectorView: View {
                             }
                         }
                         GridRow {
+                            PixelmatorActionControl(scope: .selection, compact: true)
+                                .gridCellColumns(2)
+                        }
+                        GridRow {
                             actionButton("Clear", "xmark.circle") { model.clearSelection() }
                             Button(role: .destructive) {
                                 model.requestRemoveSelectedAssets()
@@ -111,4 +115,5 @@ struct BulkSelectionInspectorView: View {
         .buttonStyle(.bordered)
         .controlSize(.small)
     }
+
 }

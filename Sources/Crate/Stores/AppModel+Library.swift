@@ -55,6 +55,7 @@ extension AppModel {
     func forgetMissingLibrary() {
         LibraryManager.clearSavedRoot()
         stopLibraryChangePolling()
+        stopPixelmatorProjectPolling()
         isLibraryOpen = false
         missingLibraryRoot = nil
         statusMessage = "Forgot missing library. Choose or create a new one."
@@ -107,6 +108,7 @@ extension AppModel {
 
         isLibraryOpen = false
         stopLibraryChangePolling()
+        stopPixelmatorProjectPolling()
         store = nil
         paths = nil
 
@@ -173,6 +175,7 @@ private extension AppModel {
     func openLibrary(at root: URL) throws {
         isLibraryOpen = false
         stopLibraryChangePolling()
+        stopPixelmatorProjectPolling()
         let preparedPaths = try LibraryManager.prepareLibrary(at: root)
         paths = preparedPaths
         store = try AssetStore(databaseURL: preparedPaths.databaseURL)
@@ -182,6 +185,7 @@ private extension AppModel {
         try reload()
         isLibraryOpen = true
         startLibraryChangePolling()
+        startPixelmatorProjectPolling()
     }
 
     func preferredLibraryPickerURL() -> URL {

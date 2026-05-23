@@ -118,6 +118,16 @@ struct AssetGridItemView: View {
                 Button("Export Selected") {
                     Task { await model.exportSelectedAssetsToFolder() }
                 }
+                if model.hasOpenPixelmatorProject {
+                    Button("Add Selected to Pixelmator") {
+                        model.sendSelectedToOpenPixelmatorProject()
+                    }
+                    .disabled(model.pixelmatorFrontDocumentURL == nil || model.isSendingToPixelmator)
+                }
+                Button("Add Selected to Pixelmator Document...") {
+                    model.sendSelectedToChosenPixelmatorDocument()
+                }
+                .disabled(model.isSendingToPixelmator)
                 Button("Clear Selection") {
                     model.clearSelection()
                 }
@@ -126,6 +136,16 @@ struct AssetGridItemView: View {
                     model.toggleFavorite(asset)
                 }
                 Button("Add to Cart") { model.addToCart(asset) }
+                if model.hasOpenPixelmatorProject {
+                    Button("Add to Pixelmator") {
+                        model.sendAssetToOpenPixelmatorProject(asset)
+                    }
+                    .disabled(model.pixelmatorFrontDocumentURL == nil || model.isSendingToPixelmator)
+                }
+                Button("Add to Pixelmator Document...") {
+                    model.sendAssetToChosenPixelmatorDocument(asset)
+                }
+                .disabled(model.isSendingToPixelmator)
             }
             if let url = asset.primaryVariant?.fileURL {
                 Button("Reveal in Finder") { AssetActions.reveal(url) }

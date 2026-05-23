@@ -123,6 +123,7 @@ CRATE_RESOURCE_BOY_ROOT="/path/to/preset-parent" ./script/build_and_run.sh
 - Visual analysis tags for color, brightness, contrast, orientation, transparency, and edge density
 - Inspector preview with pan, zoom, rotation, variants, background switching, and blend modes
 - Shared cart, collections, folder export, and zip export
+- Optional Pixelmator Pro handoff through a user-selected `pxdctl` bridge
 - CLI and MCP wrapper for agentic workflows
 
 ## Keyboard Shortcuts
@@ -138,6 +139,16 @@ CRATE_RESOURCE_BOY_ROOT="/path/to/preset-parent" ./script/build_and_run.sh
 - `Option-Cmd-L`: Reconnect Library
 - `Option-Cmd-M`: Move Library
 - `Option-Cmd-V`: Validate Library
+
+## Pixelmator Pro Handoff
+
+Crate can send a single asset, the current selection, or the cart to Pixelmator Pro as new image layers.
+
+Packaged builds include a tiny bundled bridge at `Contents/Resources/Pixelmator/pxdctl-crate-bridge`, so normal users do not need separate poster tooling. If Pixelmator has a saved `.pxd` document open, Crate offers **Add to <project name>**. You can also choose a `.pxd` manually.
+
+Advanced users can override the bundled bridge with a fuller `pxdctl` by setting `CRATE_PXDCTL_PATH`, putting `pxdctl` on `PATH`, or choosing **Choose pxdctl...** from the Pixelmator action menu.
+
+macOS may ask for Automation permission the first time Crate talks to Pixelmator Pro.
 
 ## CLI
 

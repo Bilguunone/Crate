@@ -75,6 +75,10 @@ final class AppModel {
     var selectedSimilarAssets: [DesignAsset] = []
     var selectedDuplicateClusters: [DuplicateCluster] = []
     var isFindingSimilarAssets = false
+    var pixelmatorOpenDocumentCount = 0
+    var pixelmatorFrontDocumentPath: String?
+    var pixelmatorFrontDocumentName: String?
+    var isSendingToPixelmator = false
 
     @ObservationIgnored var importReviewRefreshTask: Task<Void, Never>?
     @ObservationIgnored var duplicateScanTask: Task<Void, Never>?
@@ -83,6 +87,7 @@ final class AppModel {
     @ObservationIgnored var filteredAssetComputationGeneration = 0
     @ObservationIgnored var similarityTask: Task<Void, Never>?
     @ObservationIgnored var libraryChangePollingTask: Task<Void, Never>?
+    @ObservationIgnored var pixelmatorProjectPollingTask: Task<Void, Never>?
     @ObservationIgnored var libraryDatabaseSignature: LibraryDatabaseSignature?
     @ObservationIgnored var selectionAnchorAssetID: String?
     @ObservationIgnored var assetsByIDCache: [String: DesignAsset] = [:]
@@ -156,6 +161,24 @@ final class AppModel {
             return selectedAsset.variants.first(where: { $0.id == variantID }) ?? selectedAsset.primaryVariant
         }
         return selectedAsset.primaryVariant
+    }
+
+    var hasOpenPixelmatorProject: Bool {
+        pixelmatorOpenDocumentCount > 0
+    }
+
+    var pixelmatorFrontDocumentURL: URL? {
+        guard let pixelmatorFrontDocumentPath, !pixelmatorFrontDocumentPath.isEmpty else { return nil }
+        return URL(fileURLWithPath: pixelmatorFrontDocumentPath)
+    }
+
+    var pixelmatorOpenProjectTitle: String {
+        if let pixelmatorFrontDocumentName, !pixelmatorFrontDocumentName.isEmpty {
+            return pixelmatorFrontDocumentName
+        }
+        return pixelmatorOpenDocumentCount == 1
+            ? "Open Project"
+            : "\(pixelmatorOpenDocumentCount) Open Projects"
     }
 
     var hasRefinements: Bool {

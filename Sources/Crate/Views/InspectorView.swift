@@ -93,6 +93,10 @@ struct InspectorView: View {
                         if let url = model.selectedVariant?.fileURL { AssetActions.open(url) }
                     }
                 }
+                GridRow {
+                    PixelmatorActionControl(scope: .asset(asset), compact: true)
+                        .gridCellColumns(2)
+                }
             }
         }
     }

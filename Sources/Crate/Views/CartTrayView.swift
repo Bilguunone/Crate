@@ -71,6 +71,9 @@ struct CartTrayView: View {
                 }
                 .disabled(model.cartItems.isEmpty)
 
+                PixelmatorActionControl(scope: .cart)
+                    .frame(minWidth: 188, maxWidth: 260)
+
                 Menu {
                     Button {
                         Task { await model.exportCartToFolder() }
@@ -100,6 +103,7 @@ struct CartTrayView: View {
             .frame(height: 78)
             .background(.bar)
     }
+
 }
 
 private struct CartThumb: View {
