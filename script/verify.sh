@@ -5,7 +5,6 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 RUN_PACKAGE=0
-REQUIRED_MACOS_SDK_MAJOR=26
 
 for arg in "$@"; do
   case "$arg" in
@@ -27,20 +26,6 @@ USAGE
       ;;
   esac
 done
-
-SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version 2>/dev/null || true)"
-SDK_MAJOR="${SDK_VERSION%%.*}"
-
-if [[ -z "$SDK_VERSION" || "$SDK_MAJOR" -lt "$REQUIRED_MACOS_SDK_MAJOR" ]]; then
-  cat >&2 <<EOF
-Crate requires the macOS ${REQUIRED_MACOS_SDK_MAJOR} SDK or newer to build.
-Detected SDK: ${SDK_VERSION:-none}
-
-Install Xcode 26 or newer, or select it with:
-  sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-EOF
-  exit 1
-fi
 
 swift build
 swift test

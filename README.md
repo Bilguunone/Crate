@@ -13,10 +13,10 @@ Crate does **not** include third-party design assets. You import assets you own 
 ## Requirements
 
 - macOS 14 or newer
-- Xcode 26 or newer, or Xcode Command Line Tools with the macOS 26 SDK
+- Xcode Command Line Tools or Xcode with Swift 6 toolchain support
 - Node.js only if you want to run the MCP wrapper
 
-Crate uses macOS 26 Liquid Glass APIs behind runtime availability checks. That means the app can run on older supported macOS versions, but building from source needs a toolchain that knows the macOS 26 SDK symbols.
+Crate uses macOS 26 Liquid Glass APIs when built with a new enough SDK. Older toolchains build the same UI with material fallbacks, so public CI and contributors are not blocked by a bleeding-edge SDK.
 
 ## Quick Start
 

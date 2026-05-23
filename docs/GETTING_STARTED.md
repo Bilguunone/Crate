@@ -5,10 +5,10 @@ This guide verifies Crate without needing your own design assets.
 ## Requirements
 
 - macOS 14 or newer
-- Xcode 26 or newer, or Xcode Command Line Tools with the macOS 26 SDK
+- Xcode Command Line Tools or Xcode with Swift 6 toolchain support
 - Node.js only if you want to run the MCP wrapper
 
-Crate uses macOS 26 Liquid Glass APIs behind runtime availability checks. Building from source needs the macOS 26 SDK even though the app keeps fallbacks for older supported macOS versions.
+Crate uses macOS 26 Liquid Glass APIs when built with a new enough SDK. Older toolchains build material fallbacks so the project remains contributor-friendly.
 
 ## 1. Verify The Repo
 

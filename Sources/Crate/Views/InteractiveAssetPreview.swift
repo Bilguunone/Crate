@@ -121,6 +121,7 @@ struct InteractiveAssetPreview: View {
 
     @ViewBuilder
     private var previewControls: some View {
+#if compiler(>=6.3)
         if #available(macOS 26.0, *) {
             GlassEffectContainer(spacing: 7) {
                 HStack(spacing: 7) {
@@ -131,9 +132,26 @@ struct InteractiveAssetPreview: View {
                 }
             }
         } else {
-            controlsContent
-                .crateGlassPanel(cornerRadius: 17, interactive: true)
+            fallbackPreviewControls
         }
+#else
+        fallbackPreviewControls
+#endif
+    }
+
+    private var fallbackPreviewControls: some View {
+        HStack(spacing: 7) {
+            controlsContent
+
+            Divider()
+                .frame(height: 18)
+                .opacity(0.55)
+
+            resetButton
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 6)
+        .crateGlassPanel(cornerRadius: 17, interactive: true)
     }
 
     private var controlsContent: some View {
@@ -145,14 +163,6 @@ struct InteractiveAssetPreview: View {
                 .opacity(0.55)
 
             blendModePicker
-
-            if #unavailable(macOS 26.0) {
-                Divider()
-                    .frame(height: 18)
-                    .opacity(0.55)
-
-                resetButton
-            }
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 6)
