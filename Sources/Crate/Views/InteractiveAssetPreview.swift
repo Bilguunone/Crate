@@ -10,6 +10,7 @@ import SwiftUI
 
 struct InteractiveAssetPreview: View {
     let url: URL?
+    var height: CGFloat = 316
 
     @State private var image: NSImage?
     @State private var scale: CGFloat = 1
@@ -38,7 +39,7 @@ struct InteractiveAssetPreview: View {
 
     var body: some View {
         stage
-            .frame(height: 316)
+            .frame(height: height)
             .task(id: url) {
                 resetTransform()
                 await loadImage(for: url)

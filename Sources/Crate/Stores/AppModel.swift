@@ -27,6 +27,7 @@ final class AppModel {
     var refinedUse: String?
     var refinedAlpha: AssetAlphaFilter = .any
     var sortMode: AssetSortMode = .name
+    var browserViewMode: AssetBrowserViewMode = .grid
     var selectedAssetID: String? {
         didSet {
             guard selectedAssetID != oldValue else { return }

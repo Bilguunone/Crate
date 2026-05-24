@@ -99,6 +99,82 @@ extension AppModel {
         selectionAnchorAssetID = nil
     }
 
+    func prepareComparisonSelection(maxCount: Int = 8) {
+        guard !filteredAssets.isEmpty else {
+            clearSelection()
+            return
+        }
+
+        let visibleIDs = Set(filteredAssets.map(\.id))
+        var orderedIDs = filteredAssets
+            .filter { selectedAssetIDs.contains($0.id) }
+            .map(\.id)
+
+        if orderedIDs.isEmpty,
+           let selectedAssetID,
+           visibleIDs.contains(selectedAssetID) {
+            orderedIDs = [selectedAssetID]
+        }
+
+        if orderedIDs.isEmpty {
+            orderedIDs = filteredAssets.prefix(min(2, filteredAssets.count)).map(\.id)
+        }
+
+        while orderedIDs.count < min(2, filteredAssets.count),
+              let nextAsset = filteredAssets.first(where: { !orderedIDs.contains($0.id) }) {
+            orderedIDs.append(nextAsset.id)
+        }
+
+        if orderedIDs.count > maxCount {
+            orderedIDs = Array(orderedIDs.prefix(maxCount))
+        }
+
+        selectedAssetIDs = Set(orderedIDs)
+        selectedAssetID = selectedAssetID.flatMap { orderedIDs.contains($0) ? $0 : nil } ?? orderedIDs.first
+        selectionAnchorAssetID = selectedAssetID
+    }
+
+    func focusAssetInSelection(_ asset: DesignAsset) {
+        if selectedAssetIDs.contains(asset.id) {
+            selectedAssetID = asset.id
+            selectionAnchorAssetID = asset.id
+        } else {
+            selectOnly(asset)
+        }
+    }
+
+    func addAssetToComparison(_ asset: DesignAsset, maxCount: Int = 8) {
+        guard !selectedAssetIDs.contains(asset.id) else {
+            focusAssetInSelection(asset)
+            return
+        }
+
+        guard selectedAssetIDs.count < maxCount else {
+            statusMessage = "Compare is capped at \(maxCount) assets."
+            return
+        }
+
+        selectedAssetIDs.insert(asset.id)
+        selectedAssetID = asset.id
+        selectionAnchorAssetID = asset.id
+    }
+
+    func removeAssetFromComparison(_ asset: DesignAsset) {
+        selectedAssetIDs.remove(asset.id)
+
+        guard !selectedAssetIDs.isEmpty else {
+            selectedAssetID = nil
+            selectionAnchorAssetID = nil
+            return
+        }
+
+        if selectedAssetID == asset.id || selectedAssetID == nil {
+            selectedAssetID = filteredAssets.first(where: { selectedAssetIDs.contains($0.id) })?.id
+                ?? selectedAssetIDs.first
+        }
+        selectionAnchorAssetID = selectedAssetID
+    }
+
     func reconcileSelectionWithVisibleAssets() {
         let visibleIDs = Set(filteredAssets.map(\.id))
         selectedAssetIDs = selectedAssetIDs.intersection(visibleIDs)

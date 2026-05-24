@@ -145,6 +145,33 @@ enum AssetSortMode: String, CaseIterable, Codable, Hashable, Identifiable, Senda
     }
 }
 
+enum AssetBrowserViewMode: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
+    case grid
+    case filmstrip
+    case list
+    case compare
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .grid: "Grid"
+        case .filmstrip: "Filmstrip"
+        case .list: "List"
+        case .compare: "Compare"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .grid: "square.grid.3x3"
+        case .filmstrip: "film.stack"
+        case .list: "list.bullet.rectangle"
+        case .compare: "rectangle.split.3x1"
+        }
+    }
+}
+
 enum SmartCollectionKind: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
     case recentlyImported
     case favorites

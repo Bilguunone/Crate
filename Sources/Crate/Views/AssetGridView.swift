@@ -16,112 +16,60 @@ struct AssetGridView: View {
     @State private var isIgnoringMarqueeDrag = false
 
     private let gridCoordinateSpace = "crate-asset-grid"
-    private let gridPadding: CGFloat = 20
-    private let gridSpacing: CGFloat = 16
-    private let rowSpacing: CGFloat = 14
-    private let itemMinWidth: CGFloat = 154
-    private let itemMaxWidth: CGFloat = 220
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    Text(summary)
-                        .font(.callout)
+        GeometryReader { outerProxy in
+            let metrics = gridMetrics(for: outerProxy.size.width)
+
+            VStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title)
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                        Text(summary)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Spacer()
+                    BrowserViewModeControl()
+                    if let pack = model.selectedPack {
+                        Button(role: .destructive) {
+                            model.requestRemovePack(pack)
+                        } label: {
+                            if metrics.isCompact {
+                                Image(systemName: "trash")
+                            } else {
+                                Label("Remove Pack", systemImage: "trash")
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .help("Remove this imported pack from the managed library")
+                    }
+                    if model.isImporting {
+                        Label {
+                            Text("Importing")
+                        } icon: {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if let pack = model.selectedPack {
-                    Button(role: .destructive) {
-                        model.requestRemovePack(pack)
-                    } label: {
-                        Label("Remove Pack", systemImage: "trash")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Remove this imported pack from the managed library")
-                }
-                if model.isImporting {
-                    Label {
-                        Text("Importing")
-                    } icon: {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-
-            refinementBar
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12)
-
-            Divider()
-
-            if model.filteredAssets.isEmpty {
-                AssetEmptyState(isLibraryEmpty: model.assets.isEmpty)
-            } else {
-                GeometryReader { proxy in
-                    let visibleAssets = model.filteredAssets
-                    let columnCount = gridColumnCount(for: proxy.size.width)
-
-                    ScrollViewReader { scrollProxy in
-                        ZStack(alignment: .topLeading) {
-                            ScrollView {
-                                LazyVGrid(columns: gridColumns(count: columnCount), spacing: rowSpacing) {
-                                    ForEach(visibleAssets) { asset in
-                                        AssetGridItemView(asset: asset) {
-                                            isGridFocused = true
-                                        }
-                                        .id(asset.id)
-                                        .assetGridItemFrame(id: asset.id, coordinateSpace: gridCoordinateSpace)
-                                    }
-                                }
-                                .padding(gridPadding)
-                            }
-                            .onPreferenceChange(AssetGridItemFramePreferenceKey.self) { frames in
-                                itemFrames = frames
-                            }
-
-                            if let marqueeState {
-                                AssetGridSelectionMarquee(rect: marqueeState.rect)
-                            }
-                        }
-                        .coordinateSpace(name: gridCoordinateSpace)
-                        .clipped()
-                        .contentShape(Rectangle())
-                        .simultaneousGesture(selectionMarqueeGesture(in: visibleAssets))
-                        .simultaneousGesture(emptyBackgroundTapGesture(in: visibleAssets))
-                        .focusable()
-                        .focused($isGridFocused)
-                        .focusEffectDisabled()
-                        .onAppear {
-                            isGridFocused = true
-                        }
-                        .onChange(of: model.selectedAssetID) {
-                            guard marqueeState == nil else { return }
-                            scrollSelectedAssetIfVisible(in: visibleAssets, with: scrollProxy)
-                        }
-                        .onKeyPress(.leftArrow) {
-                            moveSelection(.left, in: visibleAssets, columnCount: columnCount, scrollProxy: scrollProxy)
-                        }
-                        .onKeyPress(.rightArrow) {
-                            moveSelection(.right, in: visibleAssets, columnCount: columnCount, scrollProxy: scrollProxy)
-                        }
-                        .onKeyPress(.upArrow) {
-                            moveSelection(.up, in: visibleAssets, columnCount: columnCount, scrollProxy: scrollProxy)
-                        }
-                        .onKeyPress(.downArrow) {
-                            moveSelection(.down, in: visibleAssets, columnCount: columnCount, scrollProxy: scrollProxy)
-                        }
                     }
                 }
+                .padding(.horizontal, metrics.horizontalPadding)
+                .padding(.vertical, metrics.headerVerticalPadding)
+
+                refinementBar
+                    .padding(.horizontal, metrics.horizontalPadding)
+                    .padding(.bottom, metrics.refinementBottomPadding)
+
+                Divider()
+
+                browserContent(metrics: metrics)
             }
         }
     }
@@ -158,35 +106,7 @@ struct AssetGridView: View {
     private var refinementBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                RefinementMenu(title: "Kind", value: model.refinedKind?.capitalized ?? "Any", systemImage: "tag") {
-                    Button("Any Kind") { model.setRefinedKind(nil) }
-                    Divider()
-                    ForEach(model.availableRefinementKinds, id: \.self) { kind in
-                        Button(kind.capitalized) { model.setRefinedKind(kind) }
-                    }
-                }
-
-                RefinementMenu(title: "Material", value: model.refinedMaterial?.capitalized ?? "Any", systemImage: "swatchpalette") {
-                    Button("Any Material") { model.setRefinedMaterial(nil) }
-                    Divider()
-                    ForEach(model.availableRefinementMaterials, id: \.self) { material in
-                        Button(material.capitalized) { model.setRefinedMaterial(material) }
-                    }
-                }
-
-                RefinementMenu(title: "Use", value: refinedUseTitle, systemImage: "wand.and.stars") {
-                    Button("Any Use") { model.setRefinedUse(nil) }
-                    Divider()
-                    ForEach(model.availableRefinementUses, id: \.self) { use in
-                        Button(use.replacingOccurrences(of: "-", with: " ").capitalized) { model.setRefinedUse(use) }
-                    }
-                }
-
-                RefinementMenu(title: "Alpha", value: model.refinedAlpha.title, systemImage: "checkerboard.rectangle") {
-                    ForEach(AssetAlphaFilter.allCases) { filter in
-                        Button(filter.title) { model.setRefinedAlpha(filter) }
-                    }
-                }
+                BrowseFilterMenu()
 
                 RefinementMenu(title: "Sort", value: model.sortMode.title, systemImage: "arrow.up.arrow.down") {
                     ForEach(AssetSortMode.allCases) { mode in
@@ -194,22 +114,14 @@ struct AssetGridView: View {
                     }
                 }
 
-                if model.hasRefinements {
-                    Button {
-                        model.clearRefinements()
-                    } label: {
-                        Label("Clear", systemImage: "xmark.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .help("Clear browsing refinements")
-                }
+                ActiveFilterChips()
 
                 if !model.filteredAssets.isEmpty {
                     Button {
                         model.selectAllFilteredAssets()
                     } label: {
                         Label("Select All", systemImage: "checkmark.circle")
+                            .labelStyle(.iconOnly)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
@@ -218,11 +130,6 @@ struct AssetGridView: View {
             }
             .padding(.vertical, 1)
         }
-    }
-
-    private var refinedUseTitle: String {
-        guard let refinedUse = model.refinedUse else { return "Any" }
-        return refinedUse.replacingOccurrences(of: "-", with: " ").capitalized
     }
 
     private func smartTitle(_ kind: SmartCollectionKind) -> String {
@@ -234,18 +141,122 @@ struct AssetGridView: View {
         return kind.title
     }
 
-    private func gridColumns(count: Int) -> [GridItem] {
+    @ViewBuilder
+    private func browserContent(metrics: AssetGridMetrics) -> some View {
+        if model.filteredAssets.isEmpty {
+            AssetEmptyState(isLibraryEmpty: model.assets.isEmpty)
+        } else {
+            switch model.browserViewMode {
+            case .grid:
+                gridBrowser(metrics: metrics)
+            case .filmstrip:
+                AssetFilmstripBrowserView()
+            case .list:
+                AssetListBrowserView()
+            case .compare:
+                AssetCompareBrowserView()
+            }
+        }
+    }
+
+    private func gridBrowser(metrics: AssetGridMetrics) -> some View {
+        GeometryReader { proxy in
+            let visibleAssets = model.filteredAssets
+            let columnCount = gridColumnCount(for: proxy.size.width, metrics: metrics)
+
+            ScrollViewReader { scrollProxy in
+                ZStack(alignment: .topLeading) {
+                    ScrollView {
+                        LazyVGrid(columns: gridColumns(count: columnCount, metrics: metrics), spacing: metrics.rowSpacing) {
+                            ForEach(visibleAssets) { asset in
+                                AssetGridItemView(asset: asset) {
+                                    isGridFocused = true
+                                }
+                                .id(asset.id)
+                                .assetGridItemFrame(id: asset.id, coordinateSpace: gridCoordinateSpace)
+                            }
+                        }
+                        .padding(metrics.gridPadding)
+                    }
+                    .onPreferenceChange(AssetGridItemFramePreferenceKey.self) { frames in
+                        itemFrames = frames
+                    }
+
+                    if let marqueeState {
+                        AssetGridSelectionMarquee(rect: marqueeState.rect)
+                    }
+                }
+                .coordinateSpace(name: gridCoordinateSpace)
+                .clipped()
+                .contentShape(Rectangle())
+                .simultaneousGesture(selectionMarqueeGesture(in: visibleAssets))
+                .simultaneousGesture(emptyBackgroundTapGesture(in: visibleAssets))
+                .focusable()
+                .focused($isGridFocused)
+                .focusEffectDisabled()
+                .onAppear {
+                    isGridFocused = true
+                }
+                .onChange(of: model.selectedAssetID) {
+                    guard marqueeState == nil else { return }
+                    scrollSelectedAssetIfVisible(in: visibleAssets, with: scrollProxy)
+                }
+                .onKeyPress(.leftArrow) {
+                    moveSelection(.left, in: visibleAssets, columnCount: columnCount, scrollProxy: scrollProxy)
+                }
+                .onKeyPress(.rightArrow) {
+                    moveSelection(.right, in: visibleAssets, columnCount: columnCount, scrollProxy: scrollProxy)
+                }
+                .onKeyPress(.upArrow) {
+                    moveSelection(.up, in: visibleAssets, columnCount: columnCount, scrollProxy: scrollProxy)
+                }
+                .onKeyPress(.downArrow) {
+                    moveSelection(.down, in: visibleAssets, columnCount: columnCount, scrollProxy: scrollProxy)
+                }
+            }
+        }
+    }
+
+    private func gridColumns(count: Int, metrics: AssetGridMetrics) -> [GridItem] {
         Array(
-            repeating: GridItem(.flexible(minimum: itemMinWidth, maximum: itemMaxWidth), spacing: gridSpacing),
+            repeating: GridItem(.flexible(minimum: metrics.itemMinWidth, maximum: metrics.itemMaxWidth), spacing: metrics.gridSpacing),
             count: count
         )
     }
 
-    private func gridColumnCount(for width: CGFloat) -> Int {
-        let contentWidth = max(itemMinWidth, width - (gridPadding * 2))
-        let maximumColumns = max(1, Int((contentWidth + gridSpacing) / (itemMinWidth + gridSpacing)))
-        let minimumColumns = max(1, Int(ceil((contentWidth + gridSpacing) / (itemMaxWidth + gridSpacing))))
+    private func gridColumnCount(for width: CGFloat, metrics: AssetGridMetrics) -> Int {
+        let contentWidth = max(metrics.itemMinWidth, width - (metrics.gridPadding * 2))
+        let maximumColumns = max(1, Int((contentWidth + metrics.gridSpacing) / (metrics.itemMinWidth + metrics.gridSpacing)))
+        let minimumColumns = max(1, Int(ceil((contentWidth + metrics.gridSpacing) / (metrics.itemMaxWidth + metrics.gridSpacing))))
         return max(1, max(minimumColumns, maximumColumns))
+    }
+
+    private func gridMetrics(for width: CGFloat) -> AssetGridMetrics {
+        if width < 520 {
+            return AssetGridMetrics(
+                horizontalPadding: 14,
+                headerVerticalPadding: 12,
+                refinementBottomPadding: 10,
+                gridPadding: 14,
+                gridSpacing: 12,
+                rowSpacing: 12,
+                itemMinWidth: 132,
+                itemMaxWidth: 188,
+                isCompact: true
+            )
+        }
+
+        return AssetGridMetrics(
+            horizontalPadding: 20,
+            headerVerticalPadding: 14,
+            refinementBottomPadding: 12,
+            gridPadding: 20,
+            gridSpacing: 16,
+            rowSpacing: 14,
+            itemMinWidth: 154,
+            itemMaxWidth: 220,
+            isCompact: false
+        )
     }
 
     private func moveSelection(
@@ -386,4 +397,16 @@ private enum GridNavigationDirection {
     case right
     case up
     case down
+}
+
+private struct AssetGridMetrics {
+    let horizontalPadding: CGFloat
+    let headerVerticalPadding: CGFloat
+    let refinementBottomPadding: CGFloat
+    let gridPadding: CGFloat
+    let gridSpacing: CGFloat
+    let rowSpacing: CGFloat
+    let itemMinWidth: CGFloat
+    let itemMaxWidth: CGFloat
+    let isCompact: Bool
 }
